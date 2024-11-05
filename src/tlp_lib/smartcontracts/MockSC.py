@@ -34,8 +34,8 @@ class MockSC:
         next_solution_index = len(self.solutions)
         time = int(datetime.now().timestamp())
         assert time < self.start_time + self.upper_bounds[next_solution_index]
-        self.check_solution(self.get_commitment_at(next_solution_index), solution, witness)
 
+        self.gctlp.verify(solution, witness, self.get_commitment_at(next_solution_index))
         self.solutions.append(solution)
 
     def verify_solution(self, i: int, /) -> bool:
@@ -43,11 +43,7 @@ class MockSC:
         return len(solution) != 0
 
     def check_solution(self, commitment: TLP_Digest, solution: GCTLP_Encrypted_Message, witness: TLP_Digest) -> bool:
-        try:
-            self.gctlp.verify(solution, witness, commitment)
-            return True
-        except AssertionError:
-            return False
+
 
     def switch_to_account(self, account: int):
         pass
