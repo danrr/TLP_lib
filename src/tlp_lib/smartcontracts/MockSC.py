@@ -31,9 +31,10 @@ class MockSC:
         return self
 
     def add_solution(self, solution: GCTLP_Encrypted_Message, witness: TLP_Digest):
+        next_solution_index = len(self.solutions)
         time = int(datetime.now().timestamp())
-        assert time < self.start_time + self.upper_bounds[len(self.solutions)]
-        self.check_solution(self.get_commitment_at(len(self.solutions)), solution, witness)
+        assert time < self.start_time + self.upper_bounds[next_solution_index]
+        self.check_solution(self.get_commitment_at(next_solution_index), solution, witness)
 
         self.solutions.append(solution)
 
