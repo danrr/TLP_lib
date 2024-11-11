@@ -1,4 +1,5 @@
 import math
+from datetime import datetime
 from typing import Literal
 from unittest.mock import Mock
 
@@ -138,12 +139,14 @@ def test_edtlp(keysize: Literal[1024, 2048], messages: list[bytes], intervals: l
     # TPH'
     sc.switch_to_account(server_helper_id)
     s = edtlp.solve(sc, server_info, pk, puzz_list, coins_acceptable)
+    when_solved: list[int] = []
     for m_, d in s:
+        when_solved.append(int(datetime.now().timestamp()))
         edtlp.register(sc, m_, d)
 
     # server
     sc.switch_to_account(server_id)
-    for i, message in enumerate(messages):
-        edtlp.verify(sc, i)
+    for i, (message, (m_, d), time) in enumerate(zip(messages, s, when_solved)):
+        edtlp.verify(sc, i, m_, d, time)
         m = edtlp.retrieve(sc, csk, i)
         assert m == message

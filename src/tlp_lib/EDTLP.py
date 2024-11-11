@@ -144,11 +144,10 @@ class EDTLP:
     def register(self, sc: SCInterface, solution: GCTLP_Encrypted_Message, commitment: TLP_Digest) -> None:
         sc.add_solution(solution, commitment)
 
-    def verify(self, sc: SCInterface, i: int) -> None:
-        sc.verify_solution(i)
-
-    def pay_back(self, sc: SCInterface, i: int) -> None:
-        sc.pay_back(i)
+    def verify(
+        self, sc: SCInterface, i: int, solution: GCTLP_Encrypted_Message, witness: TLP_Digest, time: int
+    ) -> None:
+        sc.verify_solution(i, solution, witness, time)
 
     def retrieve(self, sc: SCInterface, csk: GCTLP_Client_Key, i: int) -> TLP_Message:
         encrypted_message = sc.get_solution_at(i)

@@ -13,6 +13,7 @@ class MockSC:
     solutions: GCTLP_Encrypted_Messages = []
     gctlp: GCTLPInterface
     helper_id: Any
+    next_unsolved_puzzle_part: int = 0
 
     def initiate(
         self,
@@ -31,29 +32,37 @@ class MockSC:
         return self
 
     def add_solution(self, solution: GCTLP_Encrypted_Message, witness: TLP_Digest):
-        next_solution_index = len(self.solutions)
         time = int(datetime.now().timestamp())
-        assert time < self.start_time + self.upper_bounds[next_solution_index]
-
-        self.gctlp.verify(solution, witness, self.get_commitment_at(next_solution_index))
         self.solutions.append(solution)
 
-    def verify_solution(self, i: int, /) -> bool:
-        solution = self.get_solution_at(i)
-        return len(solution) != 0
+        if self.verify_solution(self.next_unsolved_puzzle_part, solution, witness, time):
+            self.pay()
+        else:
+            self.pay_back()
 
-    def check_solution(self, commitment: TLP_Digest, solution: GCTLP_Encrypted_Message, witness: TLP_Digest) -> bool:
+    def verify_solution(self, i: int, solution: GCTLP_Encrypted_Message, witness: TLP_Digest, time: int, /) -> bool:
 
+        on_time = time < self.start_time + self.upper_bounds[i]
+
+        correct = False
+        try:
+            self.gctlp.verify(solution, witness, self.get_commitment_at(i))
+            correct = True
+        except Exception:
+            pass
+
+        return on_time and correct
 
     def switch_to_account(self, account: int):
         pass
 
-    def pay_back(self, i: int, /):
-        assert i < len(self.coins) and self.coins[i] >= 0
-        time = int(datetime.now().timestamp())
-        assert time > self.start_time + self.upper_bounds[i]
-        print(f"paying back {self.coins[i]}")
-        self.coins[i] = -1
+    def pay(self, /):
+        print(f"paying TPH {self.coins[self.next_unsolved_puzzle_part]}")
+        self.coins[self.next_unsolved_puzzle_part] = 0
+
+    def pay_back(self, /):
+        print(f"paying back {self.coins[self.next_unsolved_puzzle_part]}")
+        self.coins[self.next_unsolved_puzzle_part] = 0
 
     def get_commitment_at(self, i: int, /) -> TLP_Digest:
         return self.commitments[i]

@@ -119,18 +119,15 @@ class EthereumSC:
         self.account = self.web3.eth.accounts[account_index]
 
     def add_solution(self, solution: GCTLP_Encrypted_Message, witness: TLP_Digest) -> None:
-        if not self._has_succeeded(self._contract.functions.addSolution(solution, witness)):
+        if not self._has_succeeded(self._contract.functions.registerSolution(solution, witness)):
             raise RuntimeError("Solution was not added correctly")
 
-    def verify_solution(self, i: int, /) -> bool:
-        return self._has_succeeded(self._contract.functions.verifySolution(i))
+    def verify_solution(self, i: int, solution: GCTLP_Encrypted_Message, witness: TLP_Digest, time: int, /) -> bool:
+        print("Time:", time)
+        return self._contract.functions.verifySolution(i, solution, witness, time).call()
 
     def get_message_at(self, i: int) -> GCTLP_Encrypted_Message:
         return self._contract.functions.getSolutionAt(i).call()
-
-    def pay_back(self, i: int) -> None:
-        if not self._has_succeeded(self._contract.functions.payBack(i)):
-            raise RuntimeError("Payback was not successful")
 
     # Private Properties #
 

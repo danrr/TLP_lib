@@ -109,18 +109,17 @@ contract SmartContract {
         }
     }
 
-    function addSolution(bytes calldata solution, bytes calldata witness) public {
+    function registerSolution(bytes calldata solution, bytes calldata witness) public {
         require(contractStatus == Status.Solving, "Contract is not in Solving status.");
         require(nextUnsolvedPuzzlePart < amountOfPuzzleParts, "All puzzle parts have already been solved.");
-        require(checkSolution(solution, witness, puzzleParts[nextUnsolvedPuzzlePart].commitment), "The solution is not correct.");
 
-        uint256 upperBound = puzzleParts[nextUnsolvedPuzzlePart].upperBound;
-        require(block.timestamp <= startTime + upperBound, "Too late: the time upper bound has been exceeded.");
-
-        // Once the solution is correct, the solver should be paid
-        pay(nextUnsolvedPuzzlePart, msg.sender);
-
-        puzzleParts[nextUnsolvedPuzzlePart].solution = solution;
+        // If the solution is correct, the solver should be paid
+        if (verifySolution(nextUnsolvedPuzzlePart, solution, witness,block.timestamp)) {
+            puzzleParts[nextUnsolvedPuzzlePart].solution = solution;
+            pay(nextUnsolvedPuzzlePart, msg.sender);
+        } else {
+            payBack(nextUnsolvedPuzzlePart);
+        }
 
         nextUnsolvedPuzzlePart++;
     }
@@ -168,11 +167,6 @@ contract SmartContract {
         return solutions;
     }
 
-    function verifySolution(uint puzzlePartIndex) public view returns (bool) {
-        require(puzzlePartIndex < amountOfPuzzleParts, "The puzzle part index is out of bounds.");
-        return puzzleParts[puzzlePartIndex].solution.length > 0;
-    }
-
     function pay(uint puzzlePartIndex, address solver) internal {
         require(!puzzleParts[puzzlePartIndex].paidOut, "The puzzle part has already been paid out.");
         puzzleParts[puzzlePartIndex].paidOut = true;
@@ -181,16 +175,21 @@ contract SmartContract {
 
     function payBack(uint puzzlePartIndex) public onlyOwner {
         require(!puzzleParts[puzzlePartIndex].paidOut, "The puzzle part has already been paid out.");
-        require(block.timestamp > startTime + puzzleParts[puzzlePartIndex].upperBound, "The time upper bound has not been exceeded yet.");
         puzzleParts[puzzlePartIndex].paidOut = true;
         payable(owner).transfer(address(this).balance);
     }
 
-    function checkSolution(bytes calldata solution, bytes calldata witness, bytes memory commitment) public pure returns (bool) {
+    function verifySolution(uint256 i, bytes calldata solution, bytes calldata witness, uint256 time) public view returns (bool) {
+        uint256 upperBound = puzzleParts[i].upperBound;
+        bool onTime = time <= startTime + upperBound;
+
+
         bytes memory concatenated = abi.encodePacked(solution, witness);
         bytes32 hash = keccak256(concatenated);
 
-        return (hash == abi.decode(commitment, (bytes32)));
+
+        bool correct = hash == abi.decode(puzzleParts[i].commitment, (bytes32));
+        return onTime && correct;
     }
 }
 

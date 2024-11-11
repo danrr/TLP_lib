@@ -259,16 +259,19 @@ def benchmark_time_edtlp(instances: int, sc: Optional[SCInterface] = None):
     time_solve = timer(edtlp_solve)
     output["helper solve"] = time_solve
 
+    when_solved = []
+
     def edtlp_register():
         for m_, d in sol:
+            when_solved.append(int(datetime.now().timestamp()))
             edtlp.register(sc, m_, d)
 
     time_register = timer(edtlp_register)
     output["helper register"] = time_register
 
     def edtlp_verify():
-        for i in range(len(messages)):
-            edtlp.verify(sc, i)
+        for i, ((m_, d), time) in enumerate(zip(sol, when_solved)):
+            edtlp.verify(sc, i, m_, d, 0)
 
     sc.switch_to_account(server_id)
     time_verify = timer(edtlp_verify)
