@@ -1,4 +1,5 @@
 from collections.abc import Callable, Generator
+from datetime import datetime
 from itertools import accumulate
 from operator import add
 from typing import Optional, Unpack
@@ -88,7 +89,10 @@ class EDTLP:
         extra_time = [cdeg(squarings_upper_bound, interval, server_info) for interval in intervals]
         upper_bounds = list(accumulate([start_time] + list(map(add, intervals, extra_time))))[1:]
         sc = self.smart_contract.initiate(
-            coins=coins, start_time=start_time, extra_time=extra_time, upper_bounds=upper_bounds, helper_id=helper_id
+            coins=coins,
+            upper_bounds=upper_bounds,
+            gctlp=self.gctlp,
+            helper_id=helper_id,
         )
 
         return extra_time, sc
@@ -126,36 +130,25 @@ class EDTLP:
         upper_bounds = sc.upper_bounds
         squarings_per_sec = server_info.squarings
 
-        prev_bound = sc.start_time
+        current_time = int(datetime.now().timestamp())
+        time_slack = current_time - sc.start_time
         for i, upper_bound in enumerate(upper_bounds):
-            server_time = t[i] / squarings_per_sec
-            maximum_time = upper_bound - prev_bound
+            server_time = t[i] / squarings_per_sec + (current_time - sc.start_time)
 
-            if server_time > maximum_time:
+            if server_time + time_slack > upper_bound:
                 raise UpperBoundException
-            prev_bound = upper_bound
+            time_slack = upper_bound - (server_time + time_slack)
 
         yield from self.gctlp.solve(pk, puzz)
 
     def register(self, sc: SCInterface, solution: GCTLP_Encrypted_Message, commitment: TLP_Digest) -> None:
         sc.add_solution(solution, commitment)
 
-    def verify(self, sc: SCInterface, i: int) -> None:
-        solution, witness, time_solved = sc.get_solution_at(i)
-        commitment = sc.get_commitment_at(i)
-        time_to_solve = time_solved - sc.initial_timestamp
-        upper_bound = sc.get_upper_bound_at(i)
-        assert time_to_solve < upper_bound
-        self.gctlp.verify(solution, witness, commitment)
-
-    def pay(self, sc: SCInterface, i: int) -> None:
-        try:
-            self.verify(sc, i)
-        except AssertionError:
-            sc.pay_back(i)
-        else:
-            sc.pay(i)
+    def verify(
+        self, sc: SCInterface, i: int, solution: GCTLP_Encrypted_Message, witness: TLP_Digest, time: int
+    ) -> None:
+        sc.verify_solution(i, solution, witness, time)
 
     def retrieve(self, sc: SCInterface, csk: GCTLP_Client_Key, i: int) -> TLP_Message:
-        encrypted_message = sc.get_message_at(i)
+        encrypted_message = sc.get_solution_at(i)
         return self.sym_enc.decrypt(csk, encrypted_message)

@@ -79,6 +79,8 @@ class GCTLPInterface(Protocol):
         **kwargs: Unpack[TLPKwargs],
     ): ...
 
+    hash: HashFunc
+
     def setup(
         self, intervals: GCTLP_Intervals, squaring_per_second: int, keysize: int = 2048
     ) -> tuple[GCTLP_Public, GCTLP_Secret]: ...

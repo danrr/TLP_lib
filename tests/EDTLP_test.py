@@ -1,4 +1,5 @@
 import math
+from datetime import datetime
 from typing import Literal
 from unittest.mock import Mock
 
@@ -10,6 +11,7 @@ from tlp_lib.EDTLP import CoinException, UpperBoundException
 from tlp_lib.protocols import Server_Info
 from tlp_lib.smartcontracts import EthereumSC, MockSC
 from tlp_lib.smartcontracts.protocols import SCInterface
+from tlp_lib.wrappers.Keccak256Wrapper import Keccak256Wrapper
 
 
 @pytest.mark.parametrize("keysize", [1024, 2048])
@@ -37,8 +39,8 @@ def test_cdeg(keysize: Literal[1024, 2048]):
 def test_edtlp_too_few_coins():
     coins = [0]
     coins_acceptable = 1
-    sc = MockSC().initiate(coins, 0, [0], [0], 1)
     edtlp = EDTLP()
+    sc = MockSC().initiate(coins, [0], edtlp.gctlp, 1)
     with pytest.raises(CoinException):
         for _ in edtlp.solve(sc, Server_Info(1), (), [], coins_acceptable):  # type: ignore
             ...
@@ -104,7 +106,7 @@ def test_edtlp(keysize: Literal[1024, 2048], messages: list[bytes], intervals: l
     server_helper_id = 2
     server_info = Server_Info(squarings=1)
 
-    edtlp = EDTLP(smart_contract=sc)
+    edtlp = EDTLP(smart_contract=sc, hash_func=Keccak256Wrapper)
 
     # client
     csk = edtlp.client_setup()
@@ -137,13 +139,14 @@ def test_edtlp(keysize: Literal[1024, 2048], messages: list[bytes], intervals: l
     # TPH'
     sc.switch_to_account(server_helper_id)
     s = edtlp.solve(sc, server_info, pk, puzz_list, coins_acceptable)
+    when_solved: list[int] = []
     for m_, d in s:
+        when_solved.append(int(datetime.now().timestamp()))
         edtlp.register(sc, m_, d)
 
     # server
     sc.switch_to_account(server_id)
-    for i, message in enumerate(messages):
-        edtlp.verify(sc, i)
-        edtlp.pay(sc, i)
+    for i, (message, (m_, d), time) in enumerate(zip(messages, s, when_solved)):
+        edtlp.verify(sc, i, m_, d, time)
         m = edtlp.retrieve(sc, csk, i)
         assert m == message

@@ -11,8 +11,8 @@ from web3.contract import Contract  # pyright: ignore[reportPrivateImportUsage]
 from web3.contract.contract import ContractFunction, HexBytes  # pyright: ignore[reportPrivateImportUsage]
 from web3.types import TxParams, TxReceipt, Wei
 
-from tlp_lib.protocols import GCTLP_Encrypted_Message, TLP_Digest, TLP_Digests
-from tlp_lib.smartcontracts.protocols import SC_Coins, SC_ExtraTime, SC_Solution, SC_Solutions, SC_UpperBounds
+from tlp_lib.protocols import GCTLP_Encrypted_Message, GCTLP_Encrypted_Messages, GCTLPInterface, TLP_Digest, TLP_Digests
+from tlp_lib.smartcontracts.protocols import SC_Coins, SC_UpperBounds
 
 SOLC_VERSION = "0.8.0"
 CONTRACT_NAME = "SmartContract"
@@ -74,17 +74,11 @@ class EthereumSC:
         return self._contract.functions.startTime().call()
 
     @property  # pyright: ignore
-    def solutions(self) -> SC_Solutions:
-        res = self._contract.functions.solutions().call()
+    def solutions(self) -> GCTLP_Encrypted_Messages:
+        return self._contract.functions.solutions().call()
 
-        return list(zip(res[0], res[1], res[2]))
-
-    def get_solution_at(self, i: int) -> SC_Solution:
+    def get_solution_at(self, i: int) -> GCTLP_Encrypted_Message:
         return self._contract.functions.getSolutionAt(i).call()
-
-    @property  # pyright: ignore[reportPropertyTypeMismatch]
-    def initial_timestamp(self) -> int:
-        return self._contract.functions.initialTimestamp().call()
 
     @property
     def account(self) -> ChecksumAddress:
@@ -101,19 +95,19 @@ class EthereumSC:
     def initiate(
         self,
         coins: SC_Coins,
-        start_time: int,
-        extra_time: SC_ExtraTime,
         upper_bounds: SC_UpperBounds,
+        gctlp: GCTLPInterface,
         helper_id: int | ChecksumAddress,
     ) -> Self:
         """
         Deploys the contract to the network and deposit the coins into the contract
         """
+        # Check that the hash function is Keccak256
+        if gctlp.hash.name != "KECCAK256":
+            raise ValueError("The hash function must be Keccak256")
 
         abi, sc_bytecode = self._compile_contract()
-        contract_address = self._deploy_contract(
-            sc_bytecode, abi, coins, start_time, extra_time, upper_bounds, helper_id
-        )
+        contract_address = self._deploy_contract(sc_bytecode, abi, coins, upper_bounds, helper_id)
         logger.info("Deployed Contract Successfully: ", contract_address)
         return self
 
@@ -125,19 +119,15 @@ class EthereumSC:
         self.account = self.web3.eth.accounts[account_index]
 
     def add_solution(self, solution: GCTLP_Encrypted_Message, witness: TLP_Digest) -> None:
-        if not self._has_succeeded(self._contract.functions.addSolution(solution, witness)):
+        if not self._has_succeeded(self._contract.functions.registerSolution(solution, witness)):
             raise RuntimeError("Solution was not added correctly")
 
+    def verify_solution(self, i: int, solution: GCTLP_Encrypted_Message, witness: TLP_Digest, time: int, /) -> bool:
+        print("Time:", time)
+        return self._contract.functions.verifySolution(i, solution, witness, time).call()
+
     def get_message_at(self, i: int) -> GCTLP_Encrypted_Message:
-        return self._contract.functions.getSolutionAt(i).call()[0]
-
-    def pay(self, i: int) -> None:
-        if not self._has_succeeded(self._contract.functions.pay(i)):
-            raise RuntimeError("Payout was not successful")
-
-    def pay_back(self, i: int) -> None:
-        if not self._has_succeeded(self._contract.functions.payBack(i)):
-            raise RuntimeError("Payback was not successful")
+        return self._contract.functions.getSolutionAt(i).call()
 
     # Private Properties #
 
@@ -183,8 +173,6 @@ class EthereumSC:
         bytecode: str,
         abi: str,
         coins: SC_Coins,
-        start_time: int,
-        extra_times: SC_ExtraTime,
         upper_bounds: SC_UpperBounds,
         helper_id: int | ChecksumAddress,
     ) -> Optional[ChecksumAddress]:
@@ -203,24 +191,22 @@ class EthereumSC:
             address=tx_receipt["contractAddress"], abi=abi
         )  # pyright: ignore[reportAttributeAccessIssue]
 
-        self._initialize_in_batches(coins, start_time, extra_times, upper_bounds, helper_id)
+        self._initialize_in_batches(coins, upper_bounds, helper_id)
 
         return tx_receipt["contractAddress"]
 
     def _initialize_in_batches(
         self,
         coins: SC_Coins,
-        start_time: int,
-        extra_times: SC_ExtraTime,
         upper_bounds: SC_UpperBounds,
         helper_id: int | ChecksumAddress,
     ) -> None:
         # Ensure that all lists have the same length
-        assert len(coins) == len(extra_times) == len(upper_bounds), "All input lists must have the same length"
+        assert len(coins) == len(upper_bounds), "All input lists must have the same length"
 
-        batches = [itertools.batched(lst, self._SC_PUZZLE_BATCH_SIZE) for lst in (coins, extra_times, upper_bounds)]
+        batches = [itertools.batched(lst, self._SC_PUZZLE_BATCH_SIZE) for lst in (coins, upper_bounds)]
 
-        for coins_batch, extra_times_batch, upper_bounds_batch in zip(*batches):
+        for coins_batch, upper_bounds_batch in zip(*batches):
 
             # Calculate the value to send with this batch
             value_to_send = sum(coins_batch)
@@ -229,8 +215,6 @@ class EthereumSC:
             if not self._has_succeeded(
                 self._contract.functions.initialize(
                     coins_batch,
-                    start_time,
-                    list(map(int, extra_times_batch)),
                     list(map(int, upper_bounds_batch)),
                     helper_id,
                 ),
