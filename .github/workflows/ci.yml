@@ -43,7 +43,7 @@ jobs:
         cache: 'pip'
     - name: Install dependencies
       run: |
-        pip install -e ".[web3]" --group dev
+        pip install ".[web3]" --group dev
     - name: Run tests
       run: |
         pytest
@@ -58,7 +58,7 @@ jobs:
         cache: 'pip'
     - name: Install dependencies
       run: |
-        pip install -e ".[web3]" --group dev
+        pip install ".[web3]" --group dev
     - name: pyright
       run: |
         basedpyright
