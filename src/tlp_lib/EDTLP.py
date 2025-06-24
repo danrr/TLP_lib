@@ -1,7 +1,7 @@
 from collections.abc import Callable, Generator
 from itertools import accumulate
 from operator import add
-from typing import Optional, Unpack
+from typing import Unpack
 
 from eth_typing import ChecksumAddress
 
@@ -37,7 +37,11 @@ class UpperBoundException(ValueError):
 
 
 # Set fixed TOC = repeated squaring in Z_(p*q)
-def custom_extra_delay(squarings_upper_bound: int, seconds: int, aux: Server_Info) -> float:
+def custom_extra_delay(
+    squarings_upper_bound: int,
+    seconds: int,
+    aux: Server_Info,
+) -> float:
     squarings = aux.squarings
     assert squarings <= squarings_upper_bound
     return seconds * (squarings_upper_bound / squarings - 1)
@@ -48,10 +52,10 @@ class EDTLP:
         self,
         *,
         gctlp: GCTLP_type = GCTLP,
-        sym_enc: Optional[SymEnc] = None,
-        random: Optional[RandGen] = None,
-        seed: Optional[int] = None,
-        smart_contract: SCInterface = MockSC(),
+        sym_enc: SymEnc | None = None,
+        random: RandGen | None = None,
+        seed: int | None = None,
+        smart_contract: SCInterface | None = None,
         **kwargs: Unpack[GCTLPKwargs],
     ):
         if random is None:
@@ -60,13 +64,24 @@ class EDTLP:
         if sym_enc is None:
             sym_enc = FernetWrapper()
         self.sym_enc = sym_enc
-        self.gctlp = gctlp(seed=seed, random=self.random, sym_enc=self.sym_enc, **kwargs)
+        self.gctlp = gctlp(
+            seed=seed,
+            random=self.random,
+            sym_enc=self.sym_enc,
+            **kwargs,
+        )
+        if smart_contract is None:
+            smart_contract = MockSC()
         self.smart_contract = smart_contract
 
     def client_setup(self) -> GCTLP_Client_Key:
         return self.sym_enc.generate_key()
 
-    def client_delegation(self, messages: TLP_Messages, csk: GCTLP_Client_Key) -> tuple[GCTLP_Encrypted_Messages, int]:
+    def client_delegation(
+        self,
+        messages: TLP_Messages,
+        csk: GCTLP_Client_Key,
+    ) -> tuple[GCTLP_Encrypted_Messages, int]:
         start_time = 0  # todo: allow for delays
         return [self.sym_enc.encrypt(csk, message) for message in messages], start_time
         # todo: send encrypted messages to TPH and start_time to TPH and S
@@ -78,22 +93,35 @@ class EDTLP:
         coins: SC_Coins,
         start_time: int,
         helper_id: int | ChecksumAddress,
-        squarings_upper_bound: Optional[int] = None,
+        squarings_upper_bound: int | None = None,
         keysize: int = 2048,
         cdeg: Callable[[int, int, Server_Info], float] = custom_extra_delay,
     ) -> tuple[SC_ExtraTime, SCInterface]:
         if squarings_upper_bound is None:
             squarings_upper_bound = SQUARINGS_PER_SEC_UPPER_BOUND[keysize]
 
-        extra_time = [cdeg(squarings_upper_bound, interval, server_info) for interval in intervals]
-        upper_bounds = list(accumulate([start_time] + list(map(add, intervals, extra_time))))[1:]
+        extra_time = [
+            cdeg(squarings_upper_bound, interval, server_info) for interval in intervals
+        ]
+        upper_bounds = list(
+            accumulate([start_time, *list(map(add, intervals, extra_time))])
+        )[1:]
         sc = self.smart_contract.initiate(
-            coins=coins, start_time=start_time, extra_time=extra_time, upper_bounds=upper_bounds, helper_id=helper_id
+            coins=coins,
+            start_time=start_time,
+            extra_time=extra_time,
+            upper_bounds=upper_bounds,
+            helper_id=helper_id,
         )
 
         return extra_time, sc
 
-    def helper_setup(self, intervals: GCTLP_Intervals, squaring_per_second: int, keysize: int = 2048):
+    def helper_setup(
+        self,
+        intervals: GCTLP_Intervals,
+        squaring_per_second: int,
+        keysize: int = 2048,
+    ):
         return self.gctlp.setup(intervals, squaring_per_second, keysize=keysize)
 
     def helper_generate(
@@ -137,7 +165,12 @@ class EDTLP:
 
         yield from self.gctlp.solve(pk, puzz)
 
-    def register(self, sc: SCInterface, solution: GCTLP_Encrypted_Message, commitment: TLP_Digest) -> None:
+    def register(
+        self,
+        sc: SCInterface,
+        solution: GCTLP_Encrypted_Message,
+        commitment: TLP_Digest,
+    ) -> None:
         sc.add_solution(solution, commitment)
 
     def verify(self, sc: SCInterface, i: int) -> None:

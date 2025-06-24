@@ -20,16 +20,23 @@ jobs:
         cache: 'pip'
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -e .
-        pip install -r requirements-dev.txt
-    - name: isort
-      run: |
-        isort . --check --diff
-    - name: black
+        pip install --upgrade pip
+        pip install -e ".[all]" --group all
+    - uses: actions/checkout@v4
+    - name: "ruff check"
+      uses: astral-sh/ruff-action@v3
+      with:
+        args: "check"
+    - name: "ruff format"
+      uses: astral-sh/ruff-action@v3
+      with:
+        args: "format --exit-non-zero-on-format"
       if: always()
-      run: |
-        black . --check --diff
+    - name: suggester / ruff
+      uses: reviewdog/action-suggester@v1.21.0
+      with:
+        tool_name: ruff
+      if: failure()
     - name: pyright
       if: always()
       run: |

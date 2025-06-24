@@ -1,5 +1,5 @@
 from collections.abc import Generator
-from typing import Optional, Unpack
+from typing import Unpack
 
 import gmpy2
 
@@ -30,8 +30,8 @@ class MITLP:
         *,
         tlp: TLP_type = TLP,
         hash_func: HashFunc = SHA512Wrapper,
-        random: Optional[RandGen] = None,
-        seed: Optional[int] = None,
+        random: RandGen | None = None,
+        seed: int | None = None,
         **kwargs: Unpack[TLPKwargs],
     ):
         if random is None:
@@ -85,7 +85,11 @@ class MITLP:
 
         return puzz_list, hash_list
 
-    def solve(self, pk: MITLP_Public_Input, puzz: TLP_Puzzles) -> Generator[tuple[TLP_Message, TLP_Digest], None, None]:
+    def solve(
+        self,
+        pk: MITLP_Public_Input,
+        puzz: TLP_Puzzles,
+    ) -> Generator[tuple[TLP_Message, TLP_Digest], None, None]:
         aux, n, t, r_i = pk
         _, len_d, len_r = aux
         z = len(puzz)

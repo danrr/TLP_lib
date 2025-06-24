@@ -1,29 +1,74 @@
 [project]
 name = "tlp_lib"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
-    "cryptography >= 42.0.4",
+    "cryptography >= 45.0.4",
     "gmpy2 >=2.2.1",
 ]
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+
 [project.optional-dependencies]
-dev = ["pip-tools", "pytest", "basedpyright", "isort", "black"]
-web3 = ["web3>=7.0.0", "py-solc-x>=2.0.3", "eth-tester[py-evm]>=0.12.0b1"]
+web3 = [
+    "web3>=7.12.0",
+    "py-solc-x>=2.0.4",
+    "eth-tester[py-evm]>=0.12.0",
+]
+all = [
+    "tlp_lib[web3]",
+]
 
-[tool.pip-tools]
-generate-hashes = true
 
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-line_length = 120
-include_trailing_comma = true
-skip_gitignore = true
+[dependency-groups]
+dev = [
+    "pytest",
+    "basedpyright",
+    "ruff>=0.12.0",
+]
 
-[tool.black]
-target-version = ["py311"]
-line_length = 120
-preview = true
-enable-unstable-feature = ["hug_parens_with_braces_and_square_brackets"]
+all = [
+    {include-group = "dev"},
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--tb=short",
+]
+
+[tool.ruff]
+line-length = 88
+extend-exclude = ["typings/*"]
+
+[tool.ruff.lint]
+extend-select = [
+    "RUF",  # Ruff rules
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "PLE",  # Pylint error
+    "PLC",  # Pylint convention
+    "F",  # Pyflakes
+    "B",  # flake8-bugbear
+    "FA",  # flake8-future-annotations
+    "EXE",  # flake8-executable
+    "Q",  # flake8-quotes
+    "I",  # isort
+    "UP",  # pyupgrade
+]
+
+ignore=[
+    "E501",  # line length, ignored for now
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.ruff.lint.per-file-ignores]
+"*/__init__.py" = ["PLC0414"]
 
 [tool.basedpyright]
 include = ["src", "tests", "benchmarks"]

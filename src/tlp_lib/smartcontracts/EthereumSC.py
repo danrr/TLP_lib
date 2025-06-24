@@ -1,18 +1,28 @@
 import itertools
 from logging import getLogger
 from pathlib import Path
-from typing import Literal, Optional, Self
+from typing import Literal, Self
 
 from eth_tester import EthereumTester, PyEVMBackend
 from eth_typing import ChecksumAddress
-from solcx import compile_files, install_solc  # pyright: ignore[reportUnknownVariableType]
+from hexbytes import HexBytes
+from solcx import (
+    compile_files,  # pyright: ignore[reportUnknownVariableType]
+    install_solc,
+)
 from web3 import EthereumTesterProvider, Web3
-from web3.contract import Contract  # pyright: ignore[reportPrivateImportUsage]
-from web3.contract.contract import ContractFunction, HexBytes  # pyright: ignore[reportPrivateImportUsage]
+from web3.contract import Contract
+from web3.contract.contract import ContractFunction
 from web3.types import TxParams, TxReceipt, Wei
 
 from tlp_lib.protocols import GCTLP_Encrypted_Message, TLP_Digest, TLP_Digests
-from tlp_lib.smartcontracts.protocols import SC_Coins, SC_ExtraTime, SC_Solution, SC_Solutions, SC_UpperBounds
+from tlp_lib.smartcontracts.protocols import (
+    SC_Coins,
+    SC_ExtraTime,
+    SC_Solution,
+    SC_Solutions,
+    SC_UpperBounds,
+)
 
 SOLC_VERSION = "0.8.0"
 CONTRACT_NAME = "SmartContract"
@@ -23,13 +33,16 @@ logger = getLogger(__name__)
 
 class EthereumSC:
     web3: Web3
-    _account: Optional[ChecksumAddress]
-    __contract: Optional[Contract] = None
+    _account: ChecksumAddress | None
+    __contract: Contract | None = None
     _contract_path: str
-    _backend: Optional[PyEVMBackend] = None
+    _backend: PyEVMBackend | None = None
 
     def __init__(
-        self, account: Optional[ChecksumAddress] = None, web3: Optional[Web3] = None, contract_path: str = CONTRACT_PATH
+        self,
+        account: ChecksumAddress | None = None,
+        web3: Web3 | None = None,
+        contract_path: str = CONTRACT_PATH,
     ):
         logger.info("Initiating EthereumSC")
         self._initiate_network(web3)
@@ -47,11 +60,16 @@ class EthereumSC:
     @commitments.setter
     def commitments(self, commitments: TLP_Digests):
         start_index = 0
-        for commitments_batch in itertools.batched(commitments, self._SC_PUZZLE_BATCH_SIZE):
-
+        for commitments_batch in itertools.batched(
+            commitments, self._SC_PUZZLE_BATCH_SIZE
+        ):
             # Call the setCommitments function for the current batch with the appropriate start index
-            if not self._has_succeeded(self._contract.functions.setCommitments(commitments_batch, start_index)):
-                raise RuntimeError(f"Commitments were not set correctly for batch starting at index {start_index}")
+            if not self._has_succeeded(
+                self._contract.functions.setCommitments(commitments_batch, start_index)
+            ):
+                raise RuntimeError(
+                    f"Commitments were not set correctly for batch starting at index {start_index}"
+                )
 
             start_index += len(commitments_batch)
 
@@ -77,7 +95,7 @@ class EthereumSC:
     def solutions(self) -> SC_Solutions:
         res = self._contract.functions.solutions().call()
 
-        return list(zip(res[0], res[1], res[2]))
+        return list(zip(res[0], res[1], res[2], strict=False))
 
     def get_solution_at(self, i: int) -> SC_Solution:
         return self._contract.functions.getSolutionAt(i).call()
@@ -89,11 +107,13 @@ class EthereumSC:
     @property
     def account(self) -> ChecksumAddress:
         if self._account is None:
-            raise RuntimeError("No Account set.  Please set an account to use the contract.")
+            raise RuntimeError(
+                "No Account set.  Please set an account to use the contract."
+            )
         return self._account
 
     @account.setter
-    def account(self, value: Optional[ChecksumAddress]):
+    def account(self, value: ChecksumAddress | None):
         self._account = value
 
     # Public Methods #
@@ -114,7 +134,7 @@ class EthereumSC:
         contract_address = self._deploy_contract(
             sc_bytecode, abi, coins, start_time, extra_time, upper_bounds, helper_id
         )
-        logger.info("Deployed Contract Successfully: ", contract_address)
+        logger.info("Deployed Contract Successfully: %s", contract_address)
         return self
 
     def load_contract(self, contract_address: ChecksumAddress) -> None:
@@ -124,8 +144,12 @@ class EthereumSC:
     def switch_to_account(self, account_index: int) -> None:
         self.account = self.web3.eth.accounts[account_index]
 
-    def add_solution(self, solution: GCTLP_Encrypted_Message, witness: TLP_Digest) -> None:
-        if not self._has_succeeded(self._contract.functions.addSolution(solution, witness)):
+    def add_solution(
+        self, solution: GCTLP_Encrypted_Message, witness: TLP_Digest
+    ) -> None:
+        if not self._has_succeeded(
+            self._contract.functions.addSolution(solution, witness)
+        ):
             raise RuntimeError("Solution was not added correctly")
 
     def get_message_at(self, i: int) -> GCTLP_Encrypted_Message:
@@ -144,7 +168,9 @@ class EthereumSC:
     @property
     def _contract(self) -> Contract:
         if self.__contract is None:
-            raise RuntimeError("No Contract set.  Please load a contract or initiate it first.")
+            raise RuntimeError(
+                "No Contract set.  Please load a contract or initiate it first."
+            )
         return self.__contract
 
     @_contract.setter
@@ -162,7 +188,7 @@ class EthereumSC:
 
         install_solc(SOLC_VERSION)
 
-        compiled_sol: dict[str, dict[Literal["abi", "bin"], str]] = compile_files(
+        compiled_sol: dict[str, dict[Literal["abi", "bin"], str]] = compile_files(  # pyright: ignore[reportUnknownVariableType]
             [self._contract_path],
             output_values=["abi", "bin"],
             solc_version=SOLC_VERSION,
@@ -170,8 +196,8 @@ class EthereumSC:
 
         compiled_contract = compiled_sol[self._contract_path + ":" + CONTRACT_NAME]
 
-        abi: Optional[str] = compiled_contract["abi"]
-        bytecode: Optional[str] = compiled_contract["bin"]
+        abi: str | None = compiled_contract["abi"]
+        bytecode: str | None = compiled_contract["bin"]
 
         assert abi is not None
         assert bytecode is not None
@@ -187,7 +213,7 @@ class EthereumSC:
         extra_times: SC_ExtraTime,
         upper_bounds: SC_UpperBounds,
         helper_id: int | ChecksumAddress,
-    ) -> Optional[ChecksumAddress]:
+    ) -> ChecksumAddress:
         """
         Deploys the contract to the network
         """
@@ -199,13 +225,24 @@ class EthereumSC:
 
         tx_receipt: TxReceipt = self.web3.eth.wait_for_transaction_receipt(tx_hash)
 
+        address = tx_receipt["contractAddress"]
+
+        assert address is not None
+
         self._contract = self.web3.eth.contract(
-            address=tx_receipt["contractAddress"], abi=abi
-        )  # pyright: ignore[reportAttributeAccessIssue]
+            address=address,
+            abi=abi,
+        )
 
-        self._initialize_in_batches(coins, start_time, extra_times, upper_bounds, helper_id)
+        self._initialize_in_batches(
+            coins,
+            start_time,
+            extra_times,
+            upper_bounds,
+            helper_id,
+        )
 
-        return tx_receipt["contractAddress"]
+        return address
 
     def _initialize_in_batches(
         self,
@@ -216,12 +253,18 @@ class EthereumSC:
         helper_id: int | ChecksumAddress,
     ) -> None:
         # Ensure that all lists have the same length
-        assert len(coins) == len(extra_times) == len(upper_bounds), "All input lists must have the same length"
+        assert len(coins) == len(extra_times) == len(upper_bounds), (
+            "All input lists must have the same length"
+        )
 
-        batches = [itertools.batched(lst, self._SC_PUZZLE_BATCH_SIZE) for lst in (coins, extra_times, upper_bounds)]
+        batches = [
+            itertools.batched(lst, self._SC_PUZZLE_BATCH_SIZE)
+            for lst in (coins, extra_times, upper_bounds)
+        ]
 
-        for coins_batch, extra_times_batch, upper_bounds_batch in zip(*batches):
-
+        for coins_batch, extra_times_batch, upper_bounds_batch in zip(
+            *batches, strict=False
+        ):
             # Calculate the value to send with this batch
             value_to_send = sum(coins_batch)
 
@@ -238,7 +281,7 @@ class EthereumSC:
             ):
                 raise RuntimeError("Initialize has failed for batch")
 
-    def _initiate_network(self, web3: Optional[Web3] = None) -> None:
+    def _initiate_network(self, web3: Web3 | None = None) -> None:
         """
         Initiates the network connection
         @:param provider: The provider to use for the connection
@@ -250,7 +293,9 @@ class EthereumSC:
                 genesis_state_overrides={"balance": Wei(1_000_000 * 10**18)},
             )
 
-            provider = EthereumTesterProvider(ethereum_tester=EthereumTester(backend=self._backend))
+            provider = EthereumTesterProvider(
+                ethereum_tester=EthereumTester(backend=self._backend)
+            )
             web3 = Web3(provider)
 
         self.web3 = web3

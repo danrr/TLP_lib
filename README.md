@@ -1,8 +1,8 @@
 # TLP_lib
 
 This repository contains the implementation of multiple flavours of time-lock puzzles:
-- [Delegated Generic Multiple Instance Time-Lock Puzzle](./static/e_Print__of___D_Time_lock_puzzle.pdf)
-- [Generic Multiple Instance Time-Lock Puzzle](./static/e_Print__of___D_Time_lock_puzzle.pdf)
+- [Delegated Generic Multiple Instance Time-Lock Puzzle](https://arxiv.org/abs/2308.01280)
+- [Generic Multiple Instance Time-Lock Puzzle](https://arxiv.org/abs/2308.01280)
 - [Multiple Instance Time-Lock Puzzle by Abadi & Kiayias](https://doi.org/10.1007/978-3-662-64331-0_28)
 - [Original Time-Lock Puzzle by Rivest, Shamir & Wagner](https://dl.acm.org/doi/10.5555/888615)
 
@@ -18,39 +18,15 @@ Activate virtual env:
 source .venv/bin/activate
 ```
 
-### Using pip-tools
-
-Install pip-tools:
 ```sh
-pip install pip-tools
-```
-
-Run pip-sync:
-```sh
-pip-sync
-```
-
-### Alternatively, you can install requirements manually.
-
-Install requirements:
-```sh   
-pip install -r requirements.txt
-```
-
-Install dev requirements:
-```sh
-pip install -r requirements-dev.txt
+pip install ".[all]"
 ```
 
 ## Development
 Install editable package:
 ```sh
-pip install -e .
+pip install -e ".[all]" --group all
 ```
-
-Project uses `pip-tools` to manage dependencies.
-Dependencies are listed in `pyproject.toml` under `[project]` -> `dependencies` and `[project.optional-dependencies]` -> `dev`.
-To update dependencies, change `pyproject.toml` and run the `pip-compile` commands listed in the requirements files.
 
 ## Testing
 Includes tests for all implemented puzzles. Run with

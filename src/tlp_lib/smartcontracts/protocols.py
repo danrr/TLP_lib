@@ -12,7 +12,6 @@ SC_Solutions = list[SC_Solution]
 
 
 class SCInterface(Protocol):
-
     def initiate(
         self,
         coins: SC_Coins,
@@ -22,7 +21,9 @@ class SCInterface(Protocol):
         helper_id: int | ChecksumAddress,
     ) -> Self: ...
 
-    def add_solution(self, solution: GCTLP_Encrypted_Message, witness: TLP_Digest) -> None: ...
+    def add_solution(
+        self, solution: GCTLP_Encrypted_Message, witness: TLP_Digest
+    ) -> None: ...
 
     def get_message_at(self, i: int, /) -> GCTLP_Encrypted_Message: ...
 

@@ -1,5 +1,5 @@
 from collections.abc import Generator, Sequence
-from typing import Optional, Unpack
+from typing import Unpack
 
 import gmpy2
 
@@ -30,8 +30,8 @@ class GCTLP:
         *,
         tlp: TLP_type = TLP,
         hash_func: HashFunc = SHA512Wrapper,
-        random: Optional[RandGen] = None,
-        seed: Optional[int] = None,
+        random: RandGen | None = None,
+        seed: int | None = None,
         **kwargs: Unpack[TLPKwargs],
     ):
         if random is None:
@@ -65,7 +65,6 @@ class GCTLP:
     def generate(
         self, m: TLP_Messages, pk: GCTLP_Public_Input, sk: GCTLP_Secret_Input
     ) -> tuple[TLP_Puzzles, TLP_Digests]:
-        # todo: generator function?
         _, n, t, _ = pk
         a, r, d = sk
         z = len(m)
@@ -88,7 +87,11 @@ class GCTLP:
 
         return puzz_list, hash_list
 
-    def solve(self, pk: GCTLP_Public_Input, puzz: TLP_Puzzles) -> Generator[tuple[TLP_Message, TLP_Digest], None, None]:
+    def solve(
+        self,
+        pk: GCTLP_Public_Input,
+        puzz: TLP_Puzzles,
+    ) -> Generator[tuple[TLP_Message, TLP_Digest], None, None]:
         aux, n, t, r_i = pk
         _, len_d, len_r = aux
         z = len(puzz)

@@ -56,7 +56,9 @@ def test_edtlp_helper_too_slow(keysize: Literal[1024, 2048]):
 
     edtlp = EDTLP()
     pk, _ = edtlp.helper_setup(intervals, SQUARINGS_PER_SEC_UPPER_BOUND[keysize])
-    _, sc = edtlp.server_delegation(intervals, best_helper, coins, start_time, helper_id, keysize=keysize)
+    _, sc = edtlp.server_delegation(
+        intervals, best_helper, coins, start_time, helper_id, keysize=keysize
+    )
     edtlp.gctlp = Mock(solve=Mock())
     with pytest.raises(UpperBoundException):
         for _ in edtlp.solve(sc, weaker_helper, pk, [], coins_acceptable):
@@ -76,9 +78,13 @@ def test_edtlp_helper_good_enough(keysize: Literal[1024, 2048]):
 
     edtlp = EDTLP()
     pk, _ = edtlp.helper_setup(intervals, SQUARINGS_PER_SEC_UPPER_BOUND[keysize])
-    _, sc = edtlp.server_delegation(intervals, weaker_helper, coins, start_time, helper_id, keysize=keysize)
+    _, sc = edtlp.server_delegation(
+        intervals, weaker_helper, coins, start_time, helper_id, keysize=keysize
+    )
     edtlp.gctlp = Mock(solve=Mock(return_value=iter(["solved_puzzles"])))
-    assert ["solved_puzzles"] == list(edtlp.solve(sc, best_helper, pk, [], coins_acceptable))
+    assert ["solved_puzzles"] == list(
+        edtlp.solve(sc, best_helper, pk, [], coins_acceptable)
+    )
     assert edtlp.gctlp.solve.call_count == 1
 
 
@@ -93,7 +99,12 @@ def test_edtlp_helper_good_enough(keysize: Literal[1024, 2048]):
     ],
 )
 @pytest.mark.parametrize("sc", [MockSC(), EthereumSC()])
-def test_edtlp(keysize: Literal[1024, 2048], messages: list[bytes], intervals: list[int], sc: SCInterface):
+def test_edtlp(
+    keysize: Literal[1024, 2048],
+    messages: list[bytes],
+    intervals: list[int],
+    sc: SCInterface,
+):
     squarings_per_second_helper = 1
 
     coins = [1] * len(intervals)

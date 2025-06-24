@@ -1,3 +1,4 @@
+# ruff: noqa PLC0415  # disable imports at top-level so unused dependencies are not always imported
 import time
 
 from consts import KEYSIZE, SEED, SQUARINGS_PER_SEC

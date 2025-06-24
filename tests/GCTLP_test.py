@@ -15,7 +15,9 @@ from tlp_lib import GCTLP
         ([b"test1", b"test2", b"test1", b"test2"], [1, 2, 1, 2]),
     ],
 )
-def test_gctlp(keysize: Literal[1024, 2048], messages: list[bytes], intervals: list[int]):
+def test_gctlp(
+    keysize: Literal[1024, 2048], messages: list[bytes], intervals: list[int]
+):
     gctlp = GCTLP()
     pk, sk = gctlp.setup(intervals, 1, keysize=keysize)
     puzz_list, hash_list = gctlp.generate(messages, pk, sk)

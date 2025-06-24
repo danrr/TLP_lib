@@ -13,7 +13,7 @@ FIXED_INTERVALS = [10**i for i in range(0, 9)]
 
 def get_size(x: Any) -> int:
     size = sys.getsizeof(x)
-    if hasattr(x, "__iter__") and not isinstance(x, (str, bytes, bytearray)):
+    if hasattr(x, "__iter__") and not isinstance(x, str | bytes | bytearray):
         for y in x:
             size += get_size(y)
     return size
@@ -32,7 +32,17 @@ def get_size_of_output(
     size_d = get_size(d)
     size_sk = size_r + size_a + size_d
     total_size = size_sk + size_pk
-    return size_aux, size_n, size_t, size_r, size_a, size_d, size_pk, size_sk, total_size
+    return (
+        size_aux,
+        size_n,
+        size_t,
+        size_r,
+        size_a,
+        size_d,
+        size_pk,
+        size_sk,
+        total_size,
+    )
 
 
 def benchmark_size(instances: int, fixed_interval: int):
@@ -52,11 +62,17 @@ def benchmark_size(instances: int, fixed_interval: int):
     gctlp = GCTLP(seed=SEED)
 
     distinct_intervals = [fixed_interval for _ in range(instances)]
-    mitlp_size = get_size_of_output(mitlp.setup(instances, fixed_interval, SQUARINGS_PER_SEC[KEYSIZE], keysize=KEYSIZE))
-    gctlp_size = get_size_of_output(gctlp.setup(distinct_intervals, SQUARINGS_PER_SEC[KEYSIZE], keysize=KEYSIZE))
+    mitlp_size = get_size_of_output(
+        mitlp.setup(
+            instances, fixed_interval, SQUARINGS_PER_SEC[KEYSIZE], keysize=KEYSIZE
+        )
+    )
+    gctlp_size = get_size_of_output(
+        gctlp.setup(distinct_intervals, SQUARINGS_PER_SEC[KEYSIZE], keysize=KEYSIZE)
+    )
     print(f"For {instances} instances of {fixed_interval} seconds each")
     print(f"{'TLP':20} {'MITLP': >20} {'GCTLP': >20} {'Difference': >20}")
-    for heading, val1, val2 in zip(headings, mitlp_size, gctlp_size):
+    for heading, val1, val2 in zip(headings, mitlp_size, gctlp_size, strict=False):
         print(f"{heading:20} {val1: >20} {val2: >20} {val2 - val1: >20}")
 
 

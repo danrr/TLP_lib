@@ -2,7 +2,7 @@ import functools
 import os
 import timeit
 import warnings
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from consts import NUMBER
 
@@ -16,11 +16,17 @@ def try_make_process_rude():
     try:
         os.nice(-20)
     except PermissionError:
-        warnings.warn("Could not make process rude to prevent sharing the CPU with other processes", RuntimeWarning)
+        warnings.warn(
+            "Could not make process rude to prevent sharing the CPU with other processes",
+            RuntimeWarning,
+            stacklevel=2,
+        )
 
 
-def timer_with_output[R, **P](f: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> tuple[float, R]:
-    output: Optional[R] = None
+def timer_with_output[R, **P](
+    f: Callable[P, R], *args: P.args, **kwargs: P.kwargs
+) -> tuple[float, R]:
+    output: R | None = None
 
     def func():
         nonlocal output

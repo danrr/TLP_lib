@@ -2,7 +2,13 @@ from datetime import datetime
 from typing import Any, Self
 
 from tlp_lib.protocols import GCTLP_Encrypted_Message, TLP_Digest, TLP_Digests
-from tlp_lib.smartcontracts.protocols import SC_Coins, SC_ExtraTime, SC_Solution, SC_Solutions, SC_UpperBounds
+from tlp_lib.smartcontracts.protocols import (
+    SC_Coins,
+    SC_ExtraTime,
+    SC_Solution,
+    SC_Solutions,
+    SC_UpperBounds,
+)
 
 
 class MockSC:
@@ -10,7 +16,7 @@ class MockSC:
     start_time: int
     upper_bounds: SC_UpperBounds
     coins: SC_Coins
-    solutions: SC_Solutions = []
+    solutions: SC_Solutions
     initial_timestamp: int
     helper_id: Any
     extra_time: SC_ExtraTime

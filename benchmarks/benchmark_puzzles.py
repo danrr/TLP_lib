@@ -3,7 +3,6 @@ from datetime import datetime
 from multiprocessing import Pool
 from operator import itemgetter
 from pathlib import Path
-from typing import Optional
 
 from consts import KEYSIZE, MESSAGE, SEED, SQUARINGS_PER_SEC
 from utils import timer, timer_with_output, try_make_process_rude
@@ -44,7 +43,7 @@ def benchmark_time_tlp(instances: int):
     def tlp_setup():
         keys.clear()
         seconds = 0
-        for i, m in enumerate(messages):
+        for i, _ in enumerate(messages):
             seconds += distinct_intervals[i]
             keys.append(tlp.setup(seconds, SQUARINGS_PER_SEC[KEYSIZE], KEYSIZE))
 
@@ -55,7 +54,7 @@ def benchmark_time_tlp(instances: int):
 
     def tlp_generate():
         puzzles.clear()
-        for (pk, sk), m in zip(keys, messages):
+        for (pk, sk), m in zip(keys, messages, strict=False):
             puzzles.append((pk, tlp.generate(pk, sk.a, m)))
 
     time_generate = timer(tlp_generate)
@@ -109,7 +108,9 @@ def benchmark_time_mitlp(instances: int):
     )
     output["setup"] = time_setup
 
-    time_generate, (puzz_list, hash_list) = timer_with_output(mitlp.generate, messages, pk, sk)
+    time_generate, (puzz_list, hash_list) = timer_with_output(
+        mitlp.generate, messages, pk, sk
+    )
     output["generate"] = time_generate
 
     if not SOLVE:
@@ -150,10 +151,14 @@ def benchmark_time_gctlp(instances: int):
     distinct_intervals = [FIXED_INTERVAL] * instances
     gctlp = GCTLP(seed=SEED)
 
-    time_setup, (pk, sk) = timer_with_output(gctlp.setup, distinct_intervals, SQUARINGS_PER_SEC[KEYSIZE], KEYSIZE)
+    time_setup, (pk, sk) = timer_with_output(
+        gctlp.setup, distinct_intervals, SQUARINGS_PER_SEC[KEYSIZE], KEYSIZE
+    )
     output["setup"] = time_setup
 
-    time_generate, (puzz_list, hash_list) = timer_with_output(gctlp.generate, messages, pk, sk)
+    time_generate, (puzz_list, hash_list) = timer_with_output(
+        gctlp.generate, messages, pk, sk
+    )
     output["generate"] = time_generate
 
     if not SOLVE:
@@ -182,7 +187,7 @@ def benchmark_time_gctlp(instances: int):
     return output
 
 
-def benchmark_time_edtlp(instances: int, sc: Optional[SCInterface] = None):
+def benchmark_time_edtlp(instances: int, sc: SCInterface | None = None):
     if sc is None:
         sc = MockSC()
         extra = ""
@@ -207,7 +212,9 @@ def benchmark_time_edtlp(instances: int, sc: Optional[SCInterface] = None):
     time_client_setup, csk = timer_with_output(edtlp.client_setup)
     output["setup"] = time_client_setup
 
-    time_client_delegation, (encrypted_messages, start_time) = timer_with_output(edtlp.client_delegation, messages, csk)
+    time_client_delegation, (encrypted_messages, start_time) = timer_with_output(
+        edtlp.client_delegation, messages, csk
+    )
     output["client delegation"] = time_client_delegation
 
     coins = [1] * len(distinct_intervals)
@@ -220,7 +227,14 @@ def benchmark_time_edtlp(instances: int, sc: Optional[SCInterface] = None):
     sc.switch_to_account(server_id)
     server_info = Server_Info(1)
     time_server_delegation, (_, sc) = timer_with_output(
-        edtlp.server_delegation, distinct_intervals, server_info, coins, start_time, helper_id, None, KEYSIZE
+        edtlp.server_delegation,
+        distinct_intervals,
+        server_info,
+        coins,
+        start_time,
+        helper_id,
+        None,
+        KEYSIZE,
     )
     output["server delegation"] = time_server_delegation
 
@@ -236,13 +250,15 @@ def benchmark_time_edtlp(instances: int, sc: Optional[SCInterface] = None):
     output["helper generate"] = time_helper_generate
 
     if not SOLVE:
-        output["total"] = sum((
-            time_client_setup,
-            time_client_delegation,
-            time_server_delegation,
-            time_helper_setup,
-            time_helper_generate,
-        ))
+        output["total"] = sum(
+            (
+                time_client_setup,
+                time_client_delegation,
+                time_server_delegation,
+                time_helper_setup,
+                time_helper_generate,
+            )
+        )
         return output
 
     coins_acceptable = 1
@@ -280,17 +296,19 @@ def benchmark_time_edtlp(instances: int, sc: Optional[SCInterface] = None):
     time_retrieve = timer(edtlp_retrieve)
     output["retrieve"] = time_retrieve
 
-    output["total"] = sum((
-        time_client_setup,
-        time_client_delegation,
-        time_server_delegation,
-        time_helper_setup,
-        time_helper_generate,
-        time_solve,
-        time_register,
-        time_verify,
-        time_retrieve,
-    ))
+    output["total"] = sum(
+        (
+            time_client_setup,
+            time_client_delegation,
+            time_server_delegation,
+            time_helper_setup,
+            time_helper_generate,
+            time_solve,
+            time_register,
+            time_verify,
+            time_retrieve,
+        )
+    )
 
     return output
 
@@ -329,7 +347,9 @@ def benchmark():
                 rows.append(output)
     rows.append(benchmark_time_tlp(INSTANCES[-1]))
 
-    with open(Path(__file__).parent / f"out/benchmark{datetime.now()}.csv", "w", newline="") as csvfile:
+    with open(
+        Path(__file__).parent / f"out/benchmark{datetime.now()}.csv", "w", newline=""
+    ) as csvfile:
         fieldnames = [
             "name",
             "extra",

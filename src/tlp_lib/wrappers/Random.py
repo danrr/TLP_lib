@@ -1,12 +1,11 @@
 import random
 import secrets
-from typing import Optional
 
 import gmpy2
 
 
 class Random:
-    def __init__(self, *, seed: Optional[int] = None):
+    def __init__(self, *, seed: int | None = None):
         if seed is not None:
             self.random_state = gmpy2.random_state(seed)
             self.rand = random.Random(seed)

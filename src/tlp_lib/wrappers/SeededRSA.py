@@ -1,10 +1,8 @@
-from typing import Optional
-
 from tlp_lib.wrappers.Random import Random
 
 
 class SeededRSA:
-    def __init__(self, *, seed: Optional[int] = None):
+    def __init__(self, *, seed: int | None = None):
         self.rand = Random(seed=seed)
 
     def gen_key(self, *, keysize: int = 2048) -> tuple[int, int, int, int]:
