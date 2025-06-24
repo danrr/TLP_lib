@@ -21,7 +21,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install --upgrade pip
-        pip install -e ".[all]" --group all
+        pip install -e ".[web3]" --group dev
     - uses: actions/checkout@v4
     - name: "ruff check"
       uses: astral-sh/ruff-action@v3
