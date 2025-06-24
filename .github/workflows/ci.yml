@@ -9,8 +9,31 @@ on:
       - main
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: "ruff check"
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: "check"
+      - name: "ruff format"
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: "format --exit-non-zero-on-format"
+        if: always()
+      - name: suggester / ruff
+        uses: reviewdog/action-suggester@v1.21.0
+        with:
+          tool_name: ruff
+        if: failure()
   test:
-    name: "run Pytest tests"
+    name: "Pytest"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -20,28 +43,22 @@ jobs:
         cache: 'pip'
     - name: Install dependencies
       run: |
-        pip install --upgrade pip
         pip install -e ".[web3]" --group dev
-    - uses: actions/checkout@v4
-    - name: "ruff check"
-      uses: astral-sh/ruff-action@v3
-      with:
-        args: "check"
-    - name: "ruff format"
-      uses: astral-sh/ruff-action@v3
-      with:
-        args: "format --exit-non-zero-on-format"
-      if: always()
-    - name: suggester / ruff
-      uses: reviewdog/action-suggester@v1.21.0
-      with:
-        tool_name: ruff
-      if: failure()
-    - name: pyright
-      if: always()
-      run: |
-        basedpyright
     - name: Run tests
-      if: always()
       run: |
         pytest
+  typecheck:
+    name: "Pytest"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+    - name: Install dependencies
+      run: |
+        pip install -e ".[web3]" --group dev
+    - name: pyright
+      run: |
+        basedpyright
