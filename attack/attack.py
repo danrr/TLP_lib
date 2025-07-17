@@ -43,9 +43,15 @@ def no_hash_attack():
     puzz_list, hash_list = mitlp.generate(messages, pk, sk)
 
     t0 = time.time()
-    solutions = list(mitlp.solve(pk, puzz_list))
+    solutions = list(mitlp.solve(pk, puzz_list[:1]))
     t1 = time.time()
-    print("time for chained solve:", t1 - t0)
+    solutions += list(
+        mitlp.solve((N, t, gmpy2.mpz(int.from_bytes(solutions[0])), r), puzz_list[1:])
+    )
+    t2 = time.time()
+    print(
+        f"time for chained solve:{t2 - t0} of which the first puzzle took {t1 - t0} seconds"
+    )
     print(solutions)
 
 
@@ -93,6 +99,6 @@ def hash_attack():
 
 
 if __name__ == "__main__":
-    verify_attack()
+    # verify_attack()
     # no_hash_attack()
-    # hash_attack()
+    hash_attack()
