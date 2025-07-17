@@ -1,7 +1,8 @@
 # Modified implementation to match
 # https://doi.org/10.1016/j.ic.2025.105301
-
 from typing import Unpack
+
+import gmpy2
 
 from tlp_lib import TLP
 from tlp_lib.protocols import (
@@ -27,6 +28,7 @@ class KP_MITLP:
         hash_func: HashFunc = SHA512Wrapper,
         random: RandGen | None = None,
         seed: int | None = None,
+        hash_messages: bool = False,
         **kwargs: Unpack[TLPKwargs],
     ):
         if random is None:
@@ -34,6 +36,7 @@ class KP_MITLP:
         self.random = random
         self.tlp = tlp(seed=seed, random=self.random, **kwargs)
         self.hash = hash_func
+        self.hash_messages = hash_messages
 
     def setup(
         self, z: int, interval: int, squaring_per_second: int, keysize: int = 2048
@@ -55,16 +58,18 @@ class KP_MITLP:
         _, _, u = sk
         z = len(m)
 
-        hash_list: TLP_Digests = [self.hash.digest(m[0] + r[0])]
-        puzz_list: TLP_Puzzles = [self.tlp.generate((N, t, a), u, m[0])]
+        hash_list: TLP_Digests = []
+        puzz_list: TLP_Puzzles = []
 
-        for i in range(1, z):
-            pk_i = N, t, int.from_bytes(m[i - 1])
+        base = a
+        for i in range(z):
+            pk_i = N, t, base
             puzzle = self.tlp.generate(pk_i, u, m[i])
-
-            hash_list.append(self.hash.digest(m[i] + r[i]))
-
             puzz_list.append(puzzle)
+            hash_list.append(self.hash.digest(m[i] + r[i]))
+            base = gmpy2.mpz(
+                int.from_bytes(self.hash.digest(m[i]) if self.hash_messages else m[i])
+            )
 
         return puzz_list, hash_list
 
@@ -75,14 +80,12 @@ class KP_MITLP:
     ):
         N, t, a, _ = pk
         z = len(puzz)
-
-        m = self.tlp.solve((N, t, a), puzz[0])
-
-        yield m
-
-        for i in range(1, z):
-            m = self.tlp.solve((N, t, int.from_bytes(m)), puzz[i])
-
+        base = a
+        for i in range(z):
+            m = self.tlp.solve((N, t, base), puzz[i])
+            base = gmpy2.mpz(
+                int.from_bytes(self.hash.digest(m) if self.hash_messages else m)
+            )
             yield m
 
     def verify(self, m: TLP_Message, d: bytes, h: TLP_Digest) -> None:

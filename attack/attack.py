@@ -1,30 +1,82 @@
-import ctypes
-
-from benchmarks.consts import SQUARINGS_PER_SEC
-from KP_MITLP import KP_MITLP
+import functools
+import time
 from multiprocessing import Pool
 
-from tlp_lib.wrappers import FernetWrapper
+import gmpy2
+from KP_MITLP import KP_MITLP
 
-if __name__ == "__main__":
-    messages = [
-        int.to_bytes(1),
-        int.to_bytes(0),
-        int.to_bytes(0),
-        int.to_bytes(1),
-        int.to_bytes(0),
-        int.to_bytes(1),
-    ]
+from benchmarks.consts import SQUARINGS_PER_SEC
+from tlp_lib.wrappers import FernetWrapper, SHA512Wrapper
 
+messages = [
+    int.to_bytes(1),
+    int.to_bytes(0),
+    int.to_bytes(0),
+    int.to_bytes(1),
+    int.to_bytes(0),
+    int.to_bytes(1),
+]
+z = len(messages)
+
+
+def no_hash_attack():
     mitlp = KP_MITLP()
-    z = len(messages)
     pk, sk = mitlp.setup(z, 60, SQUARINGS_PER_SEC[2048])
     _, _, _, r = pk
     puzz_list, hash_list = mitlp.generate(messages, pk, sk)
-    for puzz in puzz_list[1:]:
+    for i, puzz in enumerate(puzz_list[1:]):
         enc_key, enc_mess = puzz
         sym_enc = FernetWrapper()
         try:
-            print(sym_enc.decrypt(enc_key, enc_mess))
+            solution = sym_enc.decrypt(enc_key, enc_mess)
         except ValueError:
-            print(sym_enc.decrypt(enc_key - 1, enc_mess))
+            solution = sym_enc.decrypt(enc_key - 1, enc_mess)
+        mitlp.verify(solution, r[i + 1], hash_list[i + 1])
+        print(solution)
+
+
+def exponentiate_hashed_message(n, t, message: bytes):
+    base = gmpy2.mpz(int.from_bytes(SHA512Wrapper.digest(message)))
+    for _ in range(t):
+        base = base**2 % n
+    return base
+
+
+def hash_attack():
+    mitlp = KP_MITLP(hash_messages=True)
+    pk, sk = mitlp.setup(z, 10, SQUARINGS_PER_SEC[2048])
+    N, t, _, r = pk
+    puzz_list, hash_list = mitlp.generate(messages, pk, sk)
+
+    t0 = time.time()
+    solutions = list(mitlp.solve(pk, puzz_list))
+    t1 = time.time()
+    print("time for chained solve:", t1 - t0)
+    t2 = time.time()
+    with Pool(2) as pool:
+        sols = pool.map_async(
+            functools.partial(exponentiate_hashed_message, N, t),
+            [
+                int.to_bytes(0),
+                int.to_bytes(1),
+            ],
+        )
+        bypass_solutions = list(mitlp.solve(pk, puzz_list[:1]))
+        sols = sols.get()
+    for i, puzz in enumerate(puzz_list[1:]):
+        enc_key, enc_mess = puzz
+        sym_enc = FernetWrapper()
+        try:
+            solution = sym_enc.decrypt(int((enc_key - sols[0]) % N), enc_mess)
+        except ValueError:
+            solution = sym_enc.decrypt(int((enc_key - sols[1]) % N), enc_mess)
+        mitlp.verify(solution, r[i + 1], hash_list[i + 1])
+        bypass_solutions.append(solution)
+
+    t3 = time.time()
+    print("time for attack:", t3 - t2)
+    assert solutions == bypass_solutions
+
+
+if __name__ == "__main__":
+    hash_attack()
