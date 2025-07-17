@@ -41,9 +41,6 @@ class KP_MITLP:
     def setup(
         self, z: int, interval: int, squaring_per_second: int, keysize: int = 2048
     ):
-        if z < 1:
-            raise ValueError("z must be greater than 0")
-
         tlp_pk, tlp_sk = self.tlp.setup(interval, squaring_per_second, keysize)
         N, t, a = tlp_pk
         p, q, _, u = tlp_sk
