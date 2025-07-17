@@ -1,12 +1,11 @@
 import functools
-
-import gmpy2
 import time
-
-from benchmarks.consts import SQUARINGS_PER_SEC
-from KP_MITLP import KP_MITLP
 from multiprocessing import Pool
 
+import gmpy2
+from KP_MITLP import KP_MITLP
+
+from benchmarks.consts import SQUARINGS_PER_SEC
 from tlp_lib.wrappers import FernetWrapper, SHA512Wrapper
 
 messages = [
@@ -26,14 +25,15 @@ def verify_attack():
     pk, sk = mitlp.setup(z, 60, SQUARINGS_PER_SEC[2048])
     _, _, _, r = pk
     puzz_list, hash_list = mitlp.generate(messages, pk, sk)
-    for i, puzz in enumerate(puzz_list[1:]):
+    for i in range(1, z):
         try:
             solution = 0
-            mitlp.verify(int.to_bytes(solution), r[i + 1], hash_list[i + 1])
+            mitlp.verify(int.to_bytes(solution), r[i], hash_list[i])
         except AssertionError:
             solution = 1
-            mitlp.verify(int.to_bytes(solution), r[i + 1], hash_list[i + 1])
+            mitlp.verify(int.to_bytes(solution), r[i], hash_list[i])
         print(solution)
+
 
 def no_hash_attack():
     """Shows that {0,1} which are common messages (true/false) break the exponentiation"""
@@ -78,7 +78,7 @@ def hash_attack():
         )
         bypass_solutions = list(mitlp.solve(pk, puzz_list[:1]))
         sols = sols.get()
-    for i, puzz in enumerate(puzz_list[1:]):
+    for puzz in puzz_list[1:]:
         enc_key, enc_mess = puzz
         sym_enc = FernetWrapper()
         try:
@@ -93,6 +93,6 @@ def hash_attack():
 
 
 if __name__ == "__main__":
-    # verify_attack()
+    verify_attack()
     # no_hash_attack()
-    hash_attack()
+    # hash_attack()
